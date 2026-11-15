@@ -1,0 +1,145 @@
+{% extends 'ids_app/base.html' %}
+{% block title %}Batch Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="page-header">
+    <h2><i class="bi bi-file-earmark-bar-graph me-2 text-warning"></i>Batch CSV Analysis</h2>
+    <p class="text-muted mb-0 small">Upload a CSV file of network packets for bulk ML classification</p>
+  </div>
+
+  <div class="row g-3">
+    <!-- UPLOAD FORM -->
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-upload me-2"></i>Upload Dataset</div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label small text-muted">CSV File</label>
+              <input type="file" name="csv_file" class="form-control form-control-sm" accept=".csv" id="csvInput">
+              <div class="form-text small text-muted mt-1">Must contain NSL-KDD feature columns</div>
+            </div>
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-warning btn-sm" name="action" value="upload">
+                <i class="bi bi-cpu me-2"></i>Analyse File
+              </button>
+              <button type="submit" class="btn btn-outline-secondary btn-sm" name="action" value="sample">
+                <i class="bi bi-database me-2"></i>Load Sample Dataset
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- SUMMARY CARD -->
+      {% if summary %}
+      <div class="card">
+        <div class="card-header"><i class="bi bi-bar-chart me-2 text-cyan"></i>Analysis Summary</div>
+        <div class="card-body">
+          <div class="row g-2 text-center">
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:rgba(13,110,253,0.1);">
+                <div class="fw-bold text-primary fs-5">{{ summary.total }}</div>
+                <small class="text-muted">Total</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:rgba(0,208,132,0.1);">
+                <div class="fw-bold text-success fs-5">{{ summary.normal }}</div>
+                <small class="text-muted">Normal</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:rgba(255,76,76,0.1);">
+                <div class="fw-bold text-danger fs-5">{{ summary.attacks }}</div>
+                <small class="text-muted">Attacks</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:rgba(255,193,7,0.1);">
+                <div class="fw-bold text-warning fs-5">{{ summary.attack_pct }}%</div>
+                <small class="text-muted">Threat</small>
+              </div>
+            </div>
+          </div>
+
+          {% if summary.categories %}
+          <hr class="border-secondary mt-3 mb-2">
+          <small class="text-muted d-block mb-2">By Category:</small>
+          {% for cat, cnt in summary.categories.items %}
+          <div class="d-flex justify-content-between mb-1">
+            <small class="text-muted">{{ cat }}</small>
+            <span class="badge bg-dark text-warning">{{ cnt }}</span>
+          </div>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- RESULTS TABLE -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-table me-2"></i>Classification Results
+            {% if results %}<span class="badge bg-dark text-muted ms-2">{{ results|length }} rows</span>{% endif %}
+          </span>
+          {% if results %}
+          <a href="{% url 'export_logs_csv' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-download me-1"></i>Export
+          </a>
+          {% endif %}
+        </div>
+        <div class="card-body p-0" style="max-height:520px; overflow-y:auto;">
+          {% if results %}
+          <table class="table table-sm mb-0">
+            <thead style="position:sticky; top:0; z-index:5;">
+              <tr>
+                <th>#</th>
+                <th>Protocol</th>
+                <th>Service</th>
+                <th>Flag</th>
+                <th>Src Bytes</th>
+                <th>Prediction</th>
+                <th>Category</th>
+                <th>Confidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in results %}
+              <tr {% if r.is_attack %}style="background:rgba(255,76,76,0.04);"{% endif %}>
+                <td class="text-muted small">{{ forloop.counter }}</td>
+                <td>{{ r.protocol_type }}</td>
+                <td>{{ r.service }}</td>
+                <td>{{ r.flag }}</td>
+                <td>{{ r.src_bytes }}</td>
+                <td>
+                  {% if r.is_attack %}
+                    <span class="badge badge-attack">ATTACK</span>
+                  {% else %}
+                    <span class="badge badge-normal">NORMAL</span>
+                  {% endif %}
+                </td>
+                <td><span class="text-warning small">{{ r.attack_category }}</span></td>
+                <td><span class="text-info">{{ r.confidence|floatformat:1 }}%</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-file-earmark-bar-graph fs-1 d-block mb-3 opacity-25"></i>
+            <p>Upload a CSV file or click <strong>Load Sample Dataset</strong> to see results</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

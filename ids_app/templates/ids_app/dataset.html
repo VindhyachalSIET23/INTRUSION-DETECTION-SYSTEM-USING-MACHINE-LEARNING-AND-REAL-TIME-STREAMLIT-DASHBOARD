@@ -1,0 +1,124 @@
+{% extends 'ids_app/base.html' %}
+{% block title %}Dataset{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-database me-2 text-success"></i>Dataset Manager</h2>
+      <p class="text-muted mb-0 small">NSL-KDD benchmark dataset — preview and retrain</p>
+    </div>
+    <div class="d-flex gap-2">
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="action" value="retrain" class="btn btn-sm btn-warning">
+          <i class="bi bi-arrow-repeat me-1"></i>Retrain Models
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if retrain_msg %}
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle me-2"></i>{{ retrain_msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endif %}
+
+  <!-- DATASET STATS -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-primary py-2 px-3">
+        <div class="kpi-label">Training Rows</div>
+        <div class="kpi-value text-primary">{{ train_count }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-info py-2 px-3">
+        <div class="kpi-label">Test Rows</div>
+        <div class="kpi-value text-info">{{ test_count }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-success py-2 px-3">
+        <div class="kpi-label">Features</div>
+        <div class="kpi-value text-success">{{ feature_count }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-warning py-2 px-3">
+        <div class="kpi-label">Classes</div>
+        <div class="kpi-value text-warning">5</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURE LIST + SAMPLE PREVIEW -->
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-list-check me-2 text-cyan"></i>Feature Names</div>
+        <div class="card-body p-2" style="max-height:400px; overflow-y:auto;">
+          {% for feat in feature_names %}
+          <div class="d-flex justify-content-between border-bottom border-secondary py-1 px-2">
+            <code class="text-cyan small">{{ feat }}</code>
+            <span class="badge bg-dark text-muted small">{{ forloop.counter }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-table me-2"></i>Sample Data Preview</span>
+          <span class="badge bg-dark text-muted">First 20 rows</span>
+        </div>
+        <div class="card-body p-0" style="overflow-x:auto; max-height:420px;">
+          {% if sample_rows %}
+          <table class="table table-sm mb-0">
+            <thead style="position:sticky; top:0; z-index:5;">
+              <tr>
+                <th>#</th>
+                <th>Protocol</th>
+                <th>Service</th>
+                <th>Flag</th>
+                <th>Src Bytes</th>
+                <th>Dst Bytes</th>
+                <th>Label</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in sample_rows %}
+              <tr>
+                <td class="text-muted small">{{ forloop.counter }}</td>
+                <td>{{ row.protocol_type|default:"—" }}</td>
+                <td>{{ row.service|default:"—" }}</td>
+                <td>{{ row.flag|default:"—" }}</td>
+                <td>{{ row.src_bytes|default:"—" }}</td>
+                <td>{{ row.dst_bytes|default:"—" }}</td>
+                <td>
+                  {% if row.label == 'normal' %}
+                    <span class="badge badge-normal">NORMAL</span>
+                  {% else %}
+                    <span class="badge badge-attack">ATTACK</span>
+                  {% endif %}
+                </td>
+                <td><span class="text-warning small">{{ row.attack_category|default:"—" }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="text-center text-muted py-4">No data available</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends 'ids_app/base.html' %}
+{% block title %}Live Monitor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-activity me-2 text-primary"></i>Live Network Monitor</h2>
+      <p class="text-muted mb-0 small">Real-time packet capture and ML classification</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <span class="badge bg-dark border border-secondary text-muted" id="pkt-counter">Packets: 0</span>
+      <button class="btn btn-sm btn-success" id="startBtn" onclick="startMonitor()">
+        <i class="bi bi-play-fill me-1"></i>Start
+      </button>
+      <button class="btn btn-sm btn-danger" id="stopBtn" onclick="stopMonitor()" disabled>
+        <i class="bi bi-stop-fill me-1"></i>Stop
+      </button>
+      <select class="form-select form-select-sm" id="modeSelect" style="width:120px;">
+        <option value="Random">Random</option>
+        <option value="Normal">Normal Only</option>
+        <option value="Attack">Attack Only</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="row g-3 mb-3" id="live-stats">
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-primary py-2 px-3">
+        <div class="kpi-label">Packets/sec</div>
+        <div class="kpi-value text-primary" id="pps">0</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-success py-2 px-3">
+        <div class="kpi-label">Normal</div>
+        <div class="kpi-value text-success" id="cnt-normal">0</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-danger py-2 px-3">
+        <div class="kpi-label">Attacks</div>
+        <div class="kpi-value text-danger" id="cnt-attack">0</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card border-start border-4 border-warning py-2 px-3">
+        <div class="kpi-label">Threat %</div>
+        <div class="kpi-value text-warning" id="threat-pct">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PACKET TABLE -->
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-table me-2"></i>Live Packet Feed</span>
+      <span class="badge bg-success blink-badge" id="live-indicator" style="display:none;">● LIVE</span>
+    </div>
+    <div class="card-body p-0" style="max-height:400px; overflow-y:auto;" id="packet-scroll">
+      <table class="table table-sm mb-0" id="packet-table">
+        <thead style="position:sticky; top:0; z-index:10;">
+          <tr>
+            <th>#</th>
+            <th>Time</th>
+            <th>Src IP</th>
+            <th>Protocol</th>
+            <th>Service</th>
+            <th>Flag</th>
+            <th>Bytes Sent</th>
+            <th>Prediction</th>
+            <th>Category</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody id="packet-tbody">
+          <tr id="empty-row">
+            <td colspan="10" class="text-center text-muted py-5">
+              <i class="bi bi-pause-circle me-2 fs-3"></i><br>
+              Press <strong>Start</strong> to begin monitoring
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TERMINAL LOG -->
+  <div class="card">
+    <div class="card-header"><i class="bi bi-terminal me-2 text-green"></i>System Log</div>
+    <div class="card-body p-2">
+      <div class="terminal-box" id="terminal-log" style="height:120px;">
+        <div class="text-muted">[ AI NIDS Live Monitor — Ready ]</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let monitorInterval = null;
+let pktCount = 0;
+let normalCount = 0;
+let attackCount = 0;
+let rowIndex = 0;
+const MAX_ROWS = 100;
+
+function logTerminal(msg, cls='text-green') {
+  const term = document.getElementById('terminal-log');
+  const t = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = `[${t}] ${msg}`;
+  term.appendChild(line);
+  term.scrollTop = term.scrollHeight;
+}
+
+function startMonitor() {
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('live-indicator').style.display = '';
+  document.getElementById('empty-row').style.display = 'none';
+  logTerminal('Live monitoring started...', 'text-cyan');
+  monitorInterval = setInterval(fetchPacket, 1500);
+}
+
+function stopMonitor() {
+  clearInterval(monitorInterval);
+  monitorInterval = null;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('live-indicator').style.display = 'none';
+  logTerminal('Monitoring stopped.', 'text-muted');
+}
+
+function fetchPacket() {
+  const mode = document.getElementById('modeSelect').value;
+  fetch(`/api/sniff-packet/?mode=${mode}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { logTerminal('Error: ' + data.error, 'text-red'); return; }
+      addRow(data);
+      pktCount++;
+      if (data.prediction === 'normal') normalCount++;
+      else attackCount++;
+      updateStats();
+      if (data.prediction !== 'normal') {
+        logTerminal(`ALERT: ${data.attack_category} from ${data.src_ip} [${data.confidence.toFixed(1)}%]`, 'text-red');
+      }
+    })
+    .catch(e => logTerminal('Fetch error: ' + e, 'text-red'));
+}
+
+function addRow(d) {
+  const tbody = document.getElementById('packet-tbody');
+  // remove oldest if too many
+  while (tbody.rows.length >= MAX_ROWS) tbody.deleteRow(tbody.rows.length - 1);
+
+  rowIndex++;
+  const isAttack = d.prediction !== 'normal';
+  const row = tbody.insertRow(0);
+  row.className = 'packet-new';
+  if (isAttack) row.style.background = 'rgba(255,76,76,0.06)';
+
+  const predBadge = isAttack
+    ? `<span class="badge badge-attack">ATTACK</span>`
+    : `<span class="badge badge-normal">NORMAL</span>`;
+
+  row.innerHTML = `
+    <td class="text-muted small">${rowIndex}</td>
+    <td class="text-muted small">${new Date().toLocaleTimeString()}</td>
+    <td><code class="text-cyan">${d.src_ip || '—'}</code></td>
+    <td>${d.protocol || '—'}</td>
+    <td>${d.service || '—'}</td>
+    <td>${d.flag || '—'}</td>
+    <td>${d.bytes_sent ? d.bytes_sent.toFixed(0) : '—'}</td>
+    <td>${predBadge}</td>
+    <td><span class="text-warning small">${d.attack_category || '—'}</span></td>
+    <td><span class="text-info">${d.confidence ? d.confidence.toFixed(1) : 0}%</span></td>
+  `;
+}
+
+function updateStats() {
+  document.getElementById('pkt-counter').textContent = `Packets: ${pktCount}`;
+  document.getElementById('cnt-normal').textContent = normalCount;
+  document.getElementById('cnt-attack').textContent = attackCount;
+  const pct = pktCount > 0 ? Math.round(attackCount / pktCount * 100) : 0;
+  document.getElementById('threat-pct').textContent = pct + '%';
+  document.getElementById('pps').textContent = (60/90).toFixed(1); // ~0.67/sec
+}
+</script>
+{% endblock %}

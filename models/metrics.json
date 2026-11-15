@@ -1,0 +1,275 @@
+{
+  "Random Forest": {
+    "accuracy": 100.0,
+    "precision": 100.0,
+    "recall": 100.0,
+    "f1_score": 100.0,
+    "confusion_matrix": [
+      [
+        1089,
+        0
+      ],
+      [
+        0,
+        911
+      ]
+    ]
+  },
+  "Decision Tree": {
+    "accuracy": 99.9,
+    "precision": 100.0,
+    "recall": 99.78,
+    "f1_score": 99.89,
+    "confusion_matrix": [
+      [
+        1089,
+        0
+      ],
+      [
+        2,
+        909
+      ]
+    ]
+  },
+  "K-Nearest Neighbors": {
+    "accuracy": 100.0,
+    "precision": 100.0,
+    "recall": 100.0,
+    "f1_score": 100.0,
+    "confusion_matrix": [
+      [
+        1089,
+        0
+      ],
+      [
+        0,
+        911
+      ]
+    ]
+  },
+  "Logistic Regression": {
+    "accuracy": 99.9,
+    "precision": 100.0,
+    "recall": 99.78,
+    "f1_score": 99.89,
+    "confusion_matrix": [
+      [
+        1089,
+        0
+      ],
+      [
+        2,
+        909
+      ]
+    ]
+  },
+  "feature_importances": [
+    {
+      "feature": "dst_host_srv_count",
+      "importance": 0.2606
+    },
+    {
+      "feature": "dst_host_diff_srv_rate",
+      "importance": 0.1156
+    },
+    {
+      "feature": "dst_host_same_srv_rate",
+      "importance": 0.0751
+    },
+    {
+      "feature": "dst_host_same_src_port_rate",
+      "importance": 0.0737
+    },
+    {
+      "feature": "count",
+      "importance": 0.0601
+    },
+    {
+      "feature": "duration",
+      "importance": 0.0594
+    },
+    {
+      "feature": "flag",
+      "importance": 0.0555
+    },
+    {
+      "feature": "dst_bytes",
+      "importance": 0.0509
+    },
+    {
+      "feature": "srv_count",
+      "importance": 0.0444
+    },
+    {
+      "feature": "hot",
+      "importance": 0.0401
+    },
+    {
+      "feature": "srv_rerror_rate",
+      "importance": 0.0298
+    },
+    {
+      "feature": "dst_host_count",
+      "importance": 0.0247
+    },
+    {
+      "feature": "dst_host_srv_serror_rate",
+      "importance": 0.0187
+    },
+    {
+      "feature": "dst_host_serror_rate",
+      "importance": 0.0153
+    },
+    {
+      "feature": "dst_host_rerror_rate",
+      "importance": 0.0131
+    },
+    {
+      "feature": "src_bytes",
+      "importance": 0.012
+    },
+    {
+      "feature": "num_failed_logins",
+      "importance": 0.0111
+    },
+    {
+      "feature": "diff_srv_rate",
+      "importance": 0.0076
+    },
+    {
+      "feature": "srv_serror_rate",
+      "importance": 0.0065
+    },
+    {
+      "feature": "dst_host_srv_diff_host_rate",
+      "importance": 0.0064
+    },
+    {
+      "feature": "serror_rate",
+      "importance": 0.0052
+    },
+    {
+      "feature": "dst_host_srv_rerror_rate",
+      "importance": 0.0047
+    },
+    {
+      "feature": "srv_diff_host_rate",
+      "importance": 0.0026
+    },
+    {
+      "feature": "same_srv_rate",
+      "importance": 0.0022
+    },
+    {
+      "feature": "rerror_rate",
+      "importance": 0.0017
+    },
+    {
+      "feature": "num_file_creations",
+      "importance": 0.001
+    },
+    {
+      "feature": "service",
+      "importance": 0.0008
+    },
+    {
+      "feature": "protocol_type",
+      "importance": 0.0004
+    },
+    {
+      "feature": "logged_in",
+      "importance": 0.0004
+    },
+    {
+      "feature": "land",
+      "importance": 0.0001
+    },
+    {
+      "feature": "is_guest_login",
+      "importance": 0.0001
+    },
+    {
+      "feature": "wrong_fragment",
+      "importance": 0.0
+    },
+    {
+      "feature": "urgent",
+      "importance": 0.0
+    },
+    {
+      "feature": "num_compromised",
+      "importance": 0.0
+    },
+    {
+      "feature": "root_shell",
+      "importance": 0.0
+    },
+    {
+      "feature": "su_attempted",
+      "importance": 0.0
+    },
+    {
+      "feature": "num_root",
+      "importance": 0.0
+    },
+    {
+      "feature": "num_shells",
+      "importance": 0.0
+    },
+    {
+      "feature": "num_access_files",
+      "importance": 0.0
+    },
+    {
+      "feature": "is_host_login",
+      "importance": 0.0
+    }
+  ],
+  "multi_class": {
+    "accuracy": 100.0,
+    "classes": [
+      "DoS",
+      "Normal",
+      "Probe",
+      "R2L",
+      "U2R"
+    ],
+    "confusion_matrix": [
+      [
+        495,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1089,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        249,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        126,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        41
+      ]
+    ]
+  }
+}

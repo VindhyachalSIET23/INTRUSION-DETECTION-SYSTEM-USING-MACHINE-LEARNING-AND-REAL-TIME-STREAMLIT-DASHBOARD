@@ -1,0 +1,210 @@
+{% extends 'ids_app/base.html' %}
+{% block title %}Packet Tester{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="page-header">
+    <h2><i class="bi bi-terminal me-2 text-info"></i>Packet Tester</h2>
+    <p class="text-muted mb-0 small">Manually classify a network packet using the trained ML model</p>
+  </div>
+
+  <div class="row g-3">
+    <!-- FORM -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-sliders me-2"></i>Packet Parameters</div>
+        <div class="card-body">
+          <form method="post" id="packetForm">
+            {% csrf_token %}
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small text-muted">Protocol</label>
+                <select name="protocol_type" class="form-select form-select-sm">
+                  {% for p in protocol_choices %}
+                  <option value="{{ p }}" {% if result and result.inputs.protocol_type == p %}selected{% endif %}>{{ p }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Service</label>
+                <select name="service" class="form-select form-select-sm">
+                  {% for s in service_choices %}
+                  <option value="{{ s }}" {% if result and result.inputs.service == s %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Flag</label>
+                <select name="flag" class="form-select form-select-sm">
+                  {% for f in flag_choices %}
+                  <option value="{{ f }}" {% if result and result.inputs.flag == f %}selected{% endif %}>{{ f }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Duration (s)</label>
+                <input type="number" name="duration" class="form-control form-control-sm"
+                  value="{{ result.inputs.duration|default:'0' }}" min="0" max="60000">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Src Bytes</label>
+                <input type="number" name="src_bytes" class="form-control form-control-sm"
+                  value="{{ result.inputs.src_bytes|default:'215' }}" min="0">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Dst Bytes</label>
+                <input type="number" name="dst_bytes" class="form-control form-control-sm"
+                  value="{{ result.inputs.dst_bytes|default:'45076' }}" min="0">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Num Failed Logins</label>
+                <input type="number" name="num_failed_logins" class="form-control form-control-sm"
+                  value="{{ result.inputs.num_failed_logins|default:'0' }}" min="0" max="10">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Logged In (0/1)</label>
+                <select name="logged_in" class="form-select form-select-sm">
+                  <option value="1" {% if result and result.inputs.logged_in == '1' %}selected{% endif %}>Yes (1)</option>
+                  <option value="0" {% if not result or result.inputs.logged_in != '1' %}selected{% endif %}>No (0)</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Same Srv Rate</label>
+                <input type="number" name="same_srv_rate" class="form-control form-control-sm"
+                  value="{{ result.inputs.same_srv_rate|default:'1.0' }}" step="0.01" min="0" max="1">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Diff Srv Rate</label>
+                <input type="number" name="diff_srv_rate" class="form-control form-control-sm"
+                  value="{{ result.inputs.diff_srv_rate|default:'0.0' }}" step="0.01" min="0" max="1">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">SYN Error Rate</label>
+                <input type="number" name="serror_rate" class="form-control form-control-sm"
+                  value="{{ result.inputs.serror_rate|default:'0.0' }}" step="0.01" min="0" max="1">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">REJ Error Rate</label>
+                <input type="number" name="rerror_rate" class="form-control form-control-sm"
+                  value="{{ result.inputs.rerror_rate|default:'0.0' }}" step="0.01" min="0" max="1">
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+              <button type="submit" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-cpu me-2"></i>Classify Packet
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="loadSample('normal')">Normal Sample</button>
+              <button type="button" class="btn btn-outline-danger" onclick="loadSample('attack')">Attack Sample</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="col-lg-6">
+      {% if result %}
+      <div class="card {% if result.is_attack %}result-attack{% else %}result-normal{% endif %} mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div style="font-size:3rem;">
+              {% if result.is_attack %}⚠️{% else %}✅{% endif %}
+            </div>
+            <div>
+              <h4 class="mb-1 {% if result.is_attack %}text-danger{% else %}text-success{% endif %} fw-bold">
+                {{ result.prediction|upper }}
+              </h4>
+              <div class="text-muted small">Attack Category: <strong class="text-warning">{{ result.attack_category }}</strong></div>
+            </div>
+          </div>
+
+          <!-- Confidence bars per model -->
+          <h6 class="text-muted small text-uppercase mb-2">Model Confidence</h6>
+          {% for model_name, conf in result.model_confidences.items %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <small>{{ model_name }}</small>
+              <small class="text-info">{{ conf|floatformat:1 }}%</small>
+            </div>
+            <div class="threat-bar-container">
+              <div class="threat-bar-fill {% if conf > 70 %}bg-primary{% else %}bg-warning{% endif %}"
+                   style="width:{{ conf }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+
+          <div class="mt-3 p-2 rounded" style="background:rgba(0,0,0,0.3);">
+            <small class="text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              {% if result.is_attack %}
+                🚨 Intrusion detected! Protocol: <strong>{{ result.inputs.protocol_type }}</strong>
+                via <strong>{{ result.inputs.service }}</strong>.
+                Recommend blocking source IP.
+              {% else %}
+                ✅ Traffic appears normal. Protocol: <strong>{{ result.inputs.protocol_type }}</strong>
+                via <strong>{{ result.inputs.service }}</strong>.
+              {% endif %}
+            </small>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="card h-100 d-flex align-items-center justify-content-center" style="min-height:300px;">
+        <div class="text-center text-muted">
+          <i class="bi bi-terminal fs-1 mb-3 d-block opacity-25"></i>
+          <p>Fill in the parameters on the left and click <strong>Classify Packet</strong></p>
+          <p class="small">Or use the <strong>Normal/Attack Sample</strong> buttons for quick tests</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Feature Importance -->
+      <div class="card mt-3">
+        <div class="card-header small"><i class="bi bi-graph-up me-2 text-info"></i>Top Feature Importances</div>
+        <div class="card-body p-2">
+          {% for feat, imp in feature_importances %}
+          <div class="mb-1">
+            <div class="d-flex justify-content-between">
+              <small class="text-muted">{{ feat }}</small>
+              <small class="text-cyan">{{ imp|floatformat:3 }}</small>
+            </div>
+            <div class="threat-bar-container">
+              <div class="threat-bar-fill bg-info" style="width:{{ imp|floatformat:0 }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const normalSample = {
+  protocol_type: 'tcp', service: 'http', flag: 'SF',
+  duration: 0, src_bytes: 215, dst_bytes: 45076,
+  num_failed_logins: 0, logged_in: '1',
+  same_srv_rate: 1.0, diff_srv_rate: 0.0, serror_rate: 0.0, rerror_rate: 0.0
+};
+const attackSample = {
+  protocol_type: 'tcp', service: 'private', flag: 'S0',
+  duration: 0, src_bytes: 0, dst_bytes: 0,
+  num_failed_logins: 0, logged_in: '0',
+  same_srv_rate: 1.0, diff_srv_rate: 0.0, serror_rate: 1.0, rerror_rate: 0.0
+};
+
+function loadSample(type) {
+  const s = type === 'normal' ? normalSample : attackSample;
+  const form = document.getElementById('packetForm');
+  for (const [k, v] of Object.entries(s)) {
+    const el = form.elements[k];
+    if (el) el.value = v;
+  }
+}
+</script>
+{% endblock %}

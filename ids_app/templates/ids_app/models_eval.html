@@ -1,0 +1,146 @@
+{% extends 'ids_app/base.html' %}
+{% block title %}ML Models{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="page-header">
+    <h2><i class="bi bi-cpu me-2 text-primary"></i>ML Model Evaluation</h2>
+    <p class="text-muted mb-0 small">Performance metrics for all trained intrusion detection models</p>
+  </div>
+
+  <!-- MODEL CARDS -->
+  <div class="row g-3 mb-4">
+    {% for model in models %}
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100" style="{% if model.name == best_model %}border-color: #0d6efd;{% endif %}">
+        {% if model.name == best_model %}
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <span class="fw-bold">{{ model.name }}</span>
+          <span class="badge bg-dark">🏆 Best</span>
+        </div>
+        {% else %}
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-bold">{{ model.name }}</span>
+          <span class="badge bg-dark text-muted">Model</span>
+        </div>
+        {% endif %}
+        <div class="card-body">
+          <!-- Accuracy -->
+          <div class="mb-3 text-center">
+            <div class="fs-2 fw-bold text-primary">{{ model.accuracy|floatformat:1 }}%</div>
+            <small class="text-muted">Accuracy</small>
+          </div>
+
+          {% for metric_name, value in model.metrics.items %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <small class="text-muted">{{ metric_name|title }}</small>
+              <small class="text-info">{{ value|floatformat:1 }}%</small>
+            </div>
+            <div class="threat-bar-container">
+              <div class="threat-bar-fill bg-primary" style="width:{{ value }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- COMPARISON CHART + FEATURE IMPORTANCE -->
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-bar-chart me-2 text-cyan"></i>Model Comparison</div>
+        <div class="card-body">
+          <div class="chart-container" style="height:280px;">
+            <canvas id="modelCompareChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-graph-up me-2 text-warning"></i>Top Feature Importances</div>
+        <div class="card-body">
+          {% for feat, imp in feature_importances %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <small class="text-muted">{{ feat }}</small>
+              <small class="text-warning">{{ imp|floatformat:4 }}</small>
+            </div>
+            <div class="threat-bar-container">
+              <div class="threat-bar-fill" style="width:{{ imp|floatformat:0 }}%; background:linear-gradient(90deg,#ffc107,#e68900);"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAILED METRICS TABLE -->
+  <div class="card mt-3">
+    <div class="card-header"><i class="bi bi-table me-2"></i>Detailed Metrics Table</div>
+    <div class="card-body p-0">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Accuracy</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1-Score</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for model in models %}
+          <tr {% if model.name == best_model %}class="table-primary"{% endif %}>
+            <td class="fw-semibold">{{ model.name }} {% if model.name == best_model %}<span class="badge bg-primary ms-1">Best</span>{% endif %}</td>
+            <td class="text-success">{{ model.accuracy|floatformat:2 }}%</td>
+            <td>{{ model.metrics.precision|floatformat:2 }}%</td>
+            <td>{{ model.metrics.recall|floatformat:2 }}%</td>
+            <td>{{ model.metrics.f1|floatformat:2 }}%</td>
+            <td><span class="badge bg-dark text-cyan">{{ model.type }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modelNames = {{ model_names_json|safe }};
+const modelAccuracies = {{ model_accuracies_json|safe }};
+const modelPrecisions = {{ model_precisions_json|safe }};
+const modelRecalls = {{ model_recalls_json|safe }};
+
+new Chart(document.getElementById('modelCompareChart'), {
+  type: 'bar',
+  data: {
+    labels: modelNames,
+    datasets: [
+      { label: 'Accuracy', data: modelAccuracies, backgroundColor: 'rgba(13,110,253,0.75)', borderRadius: 4 },
+      { label: 'Precision', data: modelPrecisions, backgroundColor: 'rgba(0,208,132,0.75)', borderRadius: 4 },
+      { label: 'Recall', data: modelRecalls, backgroundColor: 'rgba(255,193,7,0.75)', borderRadius: 4 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#8899aa', font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#8899aa' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: { min: 0, max: 100, ticks: { color: '#8899aa', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+    }
+  }
+});
+</script>
+{% endblock %}

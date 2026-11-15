@@ -1,0 +1,157 @@
+{% extends 'ids_app/base.html' %}
+{% block title %}Attack Logs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Attack Logs</h2>
+      <p class="text-muted mb-0 small">Historical intrusion detection log — all classified packets</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'export_logs_csv' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-download me-1"></i>Export CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label small text-muted mb-1">Category</label>
+          <select name="category" class="form-select form-select-sm" style="width:140px;">
+            <option value="">All Categories</option>
+            <option value="Normal" {% if category_filter == 'Normal' %}selected{% endif %}>Normal</option>
+            <option value="DoS" {% if category_filter == 'DoS' %}selected{% endif %}>DoS</option>
+            <option value="Probe" {% if category_filter == 'Probe' %}selected{% endif %}>Probe</option>
+            <option value="R2L" {% if category_filter == 'R2L' %}selected{% endif %}>R2L</option>
+            <option value="U2R" {% if category_filter == 'U2R' %}selected{% endif %}>U2R</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <label class="form-label small text-muted mb-1">Prediction</label>
+          <select name="prediction" class="form-select form-select-sm" style="width:120px;">
+            <option value="">All</option>
+            <option value="normal" {% if prediction_filter == 'normal' %}selected{% endif %}>Normal</option>
+            <option value="attack" {% if prediction_filter == 'attack' %}selected{% endif %}>Attack</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <label class="form-label small text-muted mb-1">Source IP</label>
+          <input type="text" name="src_ip" class="form-control form-control-sm" style="width:140px;"
+            placeholder="192.168.1.x" value="{{ src_ip_filter }}">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
+          <a href="{% url 'attack_logs' %}" class="btn btn-outline-secondary btn-sm ms-1">Clear</a>
+        </div>
+        <div class="col-auto ms-auto">
+          <span class="badge bg-dark text-muted">{{ total_count }} records</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- LOGS TABLE -->
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Timestamp</th>
+              <th>Src IP</th>
+              <th>Protocol</th>
+              <th>Service</th>
+              <th>Flag</th>
+              <th>Src Bytes</th>
+              <th>Prediction</th>
+              <th>Category</th>
+              <th>Confidence</th>
+              <th>Model</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr {% if log.prediction != 'normal' %}style="background:rgba(255,76,76,0.04);"{% endif %}>
+              <td class="text-muted small">{{ log.id }}</td>
+              <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+              <td><code class="text-cyan small">{{ log.src_ip }}</code></td>
+              <td>{{ log.protocol }}</td>
+              <td>{{ log.service }}</td>
+              <td>{{ log.flag }}</td>
+              <td>{{ log.src_bytes }}</td>
+              <td>
+                {% if log.prediction == 'normal' %}
+                  <span class="badge badge-normal">NORMAL</span>
+                {% else %}
+                  <span class="badge badge-attack">ATTACK</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if log.attack_category == 'Normal' %}
+                  <span class="text-success small">Normal</span>
+                {% elif log.attack_category == 'DoS' %}
+                  <span class="badge badge-dos">DoS</span>
+                {% elif log.attack_category == 'Probe' %}
+                  <span class="badge badge-probe">Probe</span>
+                {% elif log.attack_category == 'R2L' %}
+                  <span class="badge badge-r2l">R2L</span>
+                {% elif log.attack_category == 'U2R' %}
+                  <span class="badge badge-u2r">U2R</span>
+                {% else %}
+                  <span class="text-muted small">{{ log.attack_category }}</span>
+                {% endif %}
+              </td>
+              <td><span class="text-info">{{ log.confidence|floatformat:1 }}%</span></td>
+              <td><span class="badge bg-dark text-muted small">{{ log.model_used }}</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="11" class="text-center text-muted py-5">
+                <i class="bi bi-database-slash fs-3 d-block mb-2 opacity-25"></i>
+                No logs found{% if category_filter or prediction_filter or src_ip_filter %} matching filters{% endif %}.
+                <br>Start the <a href="{% url 'live_monitor' %}">Live Monitor</a> to generate traffic logs.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if logs.has_other_pages %}
+    <div class="card-footer border-secondary">
+      <nav>
+        <ul class="pagination pagination-sm mb-0 justify-content-center">
+          {% if logs.has_previous %}
+          <li class="page-item">
+            <a class="page-link bg-dark border-secondary" href="?page={{ logs.previous_page_number }}&category={{ category_filter }}&prediction={{ prediction_filter }}&src_ip={{ src_ip_filter }}">
+              &laquo; Prev
+            </a>
+          </li>
+          {% endif %}
+          <li class="page-item disabled">
+            <span class="page-link bg-dark border-secondary">{{ logs.number }} / {{ logs.paginator.num_pages }}</span>
+          </li>
+          {% if logs.has_next %}
+          <li class="page-item">
+            <a class="page-link bg-dark border-secondary" href="?page={{ logs.next_page_number }}&category={{ category_filter }}&prediction={{ prediction_filter }}&src_ip={{ src_ip_filter }}">
+              Next &raquo;
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

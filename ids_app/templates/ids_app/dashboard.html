@@ -1,0 +1,305 @@
+{% extends 'ids_app/base.html' %}
+{% load static %}
+{% block title %}SOC Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <!-- Page Header -->
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-speedometer2 me-2 text-primary"></i>SOC Dashboard</h2>
+      <p class="text-muted mb-0 small">Security Operations Centre — Real-time Network Intelligence</p>
+    </div>
+    <div class="d-flex gap-2">
+      <span class="badge bg-dark border border-secondary text-muted">
+        <i class="bi bi-clock me-1"></i><span id="live-clock"></span>
+      </span>
+      <a href="{% url 'live_monitor' %}" class="btn btn-sm btn-primary">
+        <i class="bi bi-activity me-1"></i>Live Monitor
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card border-start border-4 border-primary">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Total Packets</div>
+            <div class="kpi-value text-white">{{ total_packets }}</div>
+            <small class="text-muted">analysed</small>
+          </div>
+          <div class="kpi-icon text-primary"><i class="bi bi-hdd-network"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card border-start border-4 border-danger">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Attacks Detected</div>
+            <div class="kpi-value text-danger">{{ total_attacks }}</div>
+            <small class="text-muted">intrusions</small>
+          </div>
+          <div class="kpi-icon text-danger"><i class="bi bi-shield-exclamation"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card border-start border-4 border-success">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Normal Traffic</div>
+            <div class="kpi-value text-success">{{ total_normal }}</div>
+            <small class="text-muted">clean packets</small>
+          </div>
+          <div class="kpi-icon text-success"><i class="bi bi-check-circle"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="kpi-card border-start border-4 border-warning">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-label">Threat Level</div>
+            <div class="kpi-value" id="threat-level-val"
+              style="color:{% if threat_pct > 50 %}#ff4c4c{% elif threat_pct > 20 %}#ffc107{% else %}#00d084{% endif %};">
+              {{ threat_pct }}%
+            </div>
+            <small class="text-muted">attack ratio</small>
+          </div>
+          <div class="kpi-icon text-warning"><i class="bi bi-graph-up-arrow"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THREAT LEVEL BAR -->
+  <div class="card mb-4">
+    <div class="card-body py-3">
+      <div class="d-flex justify-content-between mb-1">
+        <small class="text-muted">Overall Threat Level</small>
+        <small class="{% if threat_pct > 50 %}text-danger{% elif threat_pct > 20 %}text-warning{% else %}text-success{% endif %} fw-semibold">
+          {% if threat_pct > 50 %}HIGH RISK{% elif threat_pct > 20 %}MEDIUM RISK{% else %}LOW RISK{% endif %}
+        </small>
+      </div>
+      <div class="threat-bar-container">
+        <div class="threat-bar-fill"
+          style="width:{{ threat_pct }}%;
+          background:{% if threat_pct > 50 %}linear-gradient(90deg,#ff4c4c,#c0000a){% elif threat_pct > 20 %}linear-gradient(90deg,#ffc107,#e68900){% else %}linear-gradient(90deg,#00d084,#009960){% endif %};">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="row g-3 mb-4">
+    <!-- Attack Category Doughnut -->
+    <div class="col-md-5 col-xl-4">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-pie-chart text-primary"></i>
+          <span>Attack Categories</span>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center">
+          <div class="chart-container" style="height:230px; width:100%;">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service Distribution Bar -->
+    <div class="col-md-7 col-xl-8">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-bar-chart text-cyan"></i>
+          <span>Recent Alert Timeline</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="height:230px;">
+            <canvas id="timelineChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECENT LOGS + BLOCKED IPs ROW -->
+  <div class="row g-3">
+    <!-- Recent Attack Logs -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-list-ul text-warning me-2"></i>Recent Intrusion Logs</span>
+          <a href="{% url 'attack_logs' %}" class="btn btn-sm btn-outline-warning">View All</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Src IP</th>
+                  <th>Protocol</th>
+                  <th>Service</th>
+                  <th>Prediction</th>
+                  <th>Category</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in recent_logs %}
+                <tr>
+                  <td class="text-muted small">{{ log.timestamp|date:"H:i:s" }}</td>
+                  <td><code class="text-cyan">{{ log.src_ip }}</code></td>
+                  <td>{{ log.protocol }}</td>
+                  <td>{{ log.service }}</td>
+                  <td>
+                    {% if log.prediction == 'normal' %}
+                      <span class="badge badge-normal">NORMAL</span>
+                    {% else %}
+                      <span class="badge badge-attack">ATTACK</span>
+                    {% endif %}
+                  </td>
+                  <td><span class="text-warning small">{{ log.attack_category }}</span></td>
+                  <td>
+                    <div class="d-flex align-items-center gap-1">
+                      <div class="threat-bar-container" style="width:50px;">
+                        <div class="threat-bar-fill bg-primary" style="width:{{ log.confidence|floatformat:0 }}%;"></div>
+                      </div>
+                      <small>{{ log.confidence|floatformat:1 }}%</small>
+                    </div>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No logs yet. Start the <a href="{% url 'live_monitor' %}">Live Monitor</a>.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blocked IPs + Quick Actions -->
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-shield-lock text-danger me-2"></i>Blocked IPs</span>
+          <a href="{% url 'firewall' %}" class="btn btn-sm btn-outline-danger">Manage</a>
+        </div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush bg-transparent">
+            {% for ip in blocked_ips %}
+            <li class="list-group-item bg-transparent border-secondary d-flex justify-content-between">
+              <code class="text-red">{{ ip.ip_address }}</code>
+              <span class="badge bg-dark text-muted">{{ ip.block_reason|truncatechars:12 }}</span>
+            </li>
+            {% empty %}
+            <li class="list-group-item bg-transparent border-secondary text-muted text-center py-3">No blocked IPs</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-lightning me-2 text-yellow"></i>Quick Actions</div>
+        <div class="card-body d-grid gap-2">
+          <a href="{% url 'live_monitor' %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-activity me-2"></i>Start Live Monitoring
+          </a>
+          <a href="{% url 'packet_tester' %}" class="btn btn-outline-info btn-sm">
+            <i class="bi bi-terminal me-2"></i>Test a Packet
+          </a>
+          <a href="{% url 'batch_analysis' %}" class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-file-earmark-bar-graph me-2"></i>Batch CSV Analysis
+          </a>
+          <a href="{% url 'export_logs_csv' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-2"></i>Export Logs (CSV)
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Live Clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent = now.toLocaleTimeString();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// --- CATEGORY DOUGHNUT ---
+const catLabels = {{ cat_labels_json|safe }};
+const catCounts = {{ cat_counts_json|safe }};
+
+const catColors = ['#00d084','#ff4c4c','#ffc107','#0dcaf0','#9b59b6','#e67e22'];
+new Chart(document.getElementById('categoryChart'), {
+  type: 'doughnut',
+  data: {
+    labels: catLabels,
+    datasets: [{
+      data: catCounts,
+      backgroundColor: catColors.slice(0, catLabels.length),
+      borderWidth: 2,
+      borderColor: '#111827'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#8899aa', font: { size: 11 }, padding: 10 }
+      }
+    },
+    cutout: '60%'
+  }
+});
+
+// --- TIMELINE BAR (last 12 hours mock) ---
+const hours = [];
+const normalCounts = [];
+const attackCounts = [];
+for (let i = 11; i >= 0; i--) {
+  const h = new Date();
+  h.setHours(h.getHours() - i);
+  hours.push(h.getHours() + ':00');
+  normalCounts.push(Math.floor(Math.random() * 80 + 20));
+  attackCounts.push(Math.floor(Math.random() * 30));
+}
+
+new Chart(document.getElementById('timelineChart'), {
+  type: 'bar',
+  data: {
+    labels: hours,
+    datasets: [
+      { label: 'Normal', data: normalCounts, backgroundColor: 'rgba(0,208,132,0.7)', borderRadius: 4 },
+      { label: 'Attack', data: attackCounts, backgroundColor: 'rgba(255,76,76,0.7)', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#8899aa', font: { size: 11 } } }
+    },
+    scales: {
+      x: { stacked: true, ticks: { color: '#8899aa', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: { stacked: true, ticks: { color: '#8899aa', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+    }
+  }
+});
+</script>
+{% endblock %}
